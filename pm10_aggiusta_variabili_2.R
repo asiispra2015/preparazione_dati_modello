@@ -18,6 +18,7 @@ library("dplyr")
 library("purrr")
 library("lubridate")
 library("imputeTS") #per riempire gli NA dell'ndvi
+library('rWind')
 options(warn=2,error=recover)
 
 #file estratto mediante python da postgis contiene tutte le variabili associate al centroide
@@ -76,6 +77,19 @@ arrotonda=function(x)
 }  
 ###########################################################################################
 # fine arrotondamento commerciale
+###########################################################################################
+
+
+###########################################################################################
+#Creazione di wspeed e wdir da u10 e v10
+###########################################################################################
+
+rWind::uv2ds(dati$u10,dati$v10)->myUV
+dati$wspeed<-myUV[,c('speed')]
+dati$wdir<-myUV[,c('dir')]
+
+###########################################################################################
+#Fine creazione di wspeed e wdir da u10 e v10
 ###########################################################################################
 
 
@@ -157,7 +171,7 @@ altre<-c("i_surface","q_dem","p_istat")
 #Elenco delle variabili spazio-temporali
 ########################### 
 pbl<-c("pbl00","pbl12","log.pbl00","log.pbl12")
-era5<-c("t2m","sp","u10","v10","tp")
+era5<-c("t2m","sp","u10","v10","tp",'wspeed','wdir')
 ndvi<-c("ndvi")
 aod<-c("aod550","log.aod550")
 
