@@ -89,6 +89,13 @@ dati$wspeed<-myUV[,c('speed')]
 dati$wdir<-myUV[,c('dir')]
 
 ###########################################################################################
+#creazione variabile WDI da wdir 
+###########################################################################################
+
+dati$wwdi<-1+sin(dati$wdir+pi/4)
+
+
+###########################################################################################
 #Fine creazione di wspeed e wdir da u10 e v10
 ###########################################################################################
 
@@ -171,7 +178,7 @@ altre<-c("i_surface","q_dem","p_istat")
 #Elenco delle variabili spazio-temporali
 ########################### 
 pbl<-c("pbl00","pbl12","log.pbl00","log.pbl12")
-era5<-c("t2m","sp","u10","v10","tp",'wspeed','wdir')
+era5<-c("t2m","sp","u10","v10","tp",'wspeed','wdir',"wwdi")
 ndvi<-c("ndvi")
 aod<-c("aod550","log.aod550")
 
