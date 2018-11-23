@@ -1,4 +1,4 @@
-#aggiornamento 8 ottobre 2018
+#aggiornamento 23 novembre 2018
 #Input: 
 # file con dati pm10 estratti dal database postgis con il programma python di interrogazione al database
 # Output:
@@ -7,6 +7,12 @@
 # - il parametro data_record_value rinominato in pm10
 # - il parametro data_record rinominato yymmdd
 # - aggiunta la variabile season rispetto al file di input
+
+# Le variabili wdir e wspeed vengono create solo se le due stringhe "wdir" e "speed" non compaiono in names(dati). Questo perchè
+# le due variabili (rasters 2015) sono state aggiunte al database postgis.
+
+# La variabile wwdi (wind direction index) viene creata solo se WDI posta uguale a TRUE (default è FALSE visto che WDIR sembra una scelta migliore per il modello)
+
 # Il file di output si chiama: pm10_analisi.csv
 
 #ATTTENZIONE: le variabili temporali sono standardizzate stazione per stazione, le variabili
@@ -21,12 +27,14 @@ library("imputeTS") #per riempire gli NA dell'ndvi
 library('rWind')
 options(warn=2,error=recover)
 
+WDI<-FALSE #se si vuole creare la variabile wwdi, settare a TRUE
+
 #file estratto mediante python da postgis contiene tutte le variabili associate al centroide
 #rappresentativo delle centraline
-nomeFile<-"pm10_25luglio2018.csv"
+nomeFile<-"pm10_dati22novembre2018.csv"
+nomeFileOutput<-"pm10_analisi.csv"
 
 if(!file.exists(nomeFile)) stop(sprintf("File %s di input non trovato",nomeFile))
-
 
 
 # Funzione per standardizzazione delle variabili quantitative --------------------------
@@ -39,11 +47,11 @@ scala.inv<-function(x){if(all(is.na(x))) return(x); scala(1/(x+1))->xx; imputeTS
 
 creaFun<-function(nome){
   
-  if(grepl("^pbl..$",nome)){
-    print("PLANET BOUNDARY LAYER: scalo 1/x invece di x")
+  if(grepl("^.*pbl..$",nome)){
+    print(sprintf("PLANET BOUNDARY LAYER: scalo 1/%s invece di %s",nome,nome))
     scala.inv
   }else{
-    print("scalo x")
+    print(sprintf("Scalo variabile %s",nome))
     scala
   }
   
@@ -83,23 +91,29 @@ arrotonda=function(x)
 ###########################################################################################
 #Creazione di wspeed e wdir da u10 e v10
 ###########################################################################################
-
-rWind::uv2ds(dati$u10,dati$v10)->myUV
-dati$wspeed<-myUV[,c('speed')]
-dati$wdir<-myUV[,c('dir')]
+if(!all(c("wdir","wspeed") %in% names(dati))){
+  print("##############################################################")
+  print("--> Variabili wdir e wspeed non presenti nel set di dati, procedo alla creazione mediante pacchetto rWind <--")
+  print("##############################################################")
+  rWind::uv2ds(dati$u10,dati$v10)->myUV
+  dati$wspeed<-myUV[,c('speed')]
+  dati$wdir<-myUV[,c('dir')]
+}else{
+  print("##############################################################")
+  print("--> Variabili wdir e wspeed presenti nel set di dati, NON verranno create <--")
+  print("##############################################################")
+}
 
 ###########################################################################################
 #creazione variabile WDI da wdir 
 ###########################################################################################
 
-dati$wwdi<-1+sin(dati$wdir+pi/4)
+if(WDI){dati$wwdi<-1+sin(dati$wdir+pi/4)}
 
 
 ###########################################################################################
 #Fine creazione di wspeed e wdir da u10 e v10
 ###########################################################################################
-
-
 
 #rinomino data_record_value in pm10
 if(!any(grepl("^pm10$",names(dati)))) names(dati)[grepl("^data_record_value$",names(dati))]<-"pm10"
@@ -112,7 +126,9 @@ dati %>%
   mutate(rpm10=arrotonda(pm10)) %>%
   mutate(rpm10=ifelse(rpm10 < SOGLIA  & !is.na(rpm10),SOGLIA,rpm10))->dati
 
-
+print("##############################################################")
+print(sprintf("--> I valori di pm10 dopo arrotondamento commericiale < di %s sono stati arrotondati a %s nella variabile rpm10 <--",SOGLIA,SOGLIA))
+print("##############################################################")
 
 
 ###########################################################################################
@@ -178,7 +194,8 @@ altre<-c("i_surface","q_dem","p_istat")
 #Elenco delle variabili spazio-temporali
 ########################### 
 pbl<-c("pbl00","pbl12","log.pbl00","log.pbl12")
-era5<-c("t2m","sp","u10","v10","tp",'wspeed','wdir',"wwdi")
+era5<-c("t2m","sp","u10","v10","tp",'wspeed','wdir')
+if(WDI) era5<-c(era5,"wwdi")
 ndvi<-c("ndvi")
 aod<-c("aod550","log.aod550")
 
@@ -270,4 +287,7 @@ rm(finale)
 #
 
 #scrittura file di output
-write_delim(daScrivere,path="pm10_analisi.csv",delim=";",col_names = TRUE)
+write_delim(daScrivere,path=nomeFileOutput,delim=";",col_names = TRUE)
+print("##############################################################")
+print(sprintf("--> Programma terminato, risultati nel file: %s <--",nomeFileOutput))
+print("##############################################################")
